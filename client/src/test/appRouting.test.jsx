@@ -8,7 +8,7 @@
  *  4. Route protection: Unauthenticated visitors redirected to /login
  *  5. Role protection: 403 Forbidden state rendered when role is disallowed
  *  6. Role routes:
- *     - SHOP_OWNER: /dashboard, /requirements, /suppliers, /group-buys, /group-buys/create, /orders, /payments, /profile
+ *     - SHOP_OWNER: /dashboard, /requirements, /suppliers, /group-buys, /group-buys/create, /orders, /payments, /refunds, /profile
  *     - SUPPLIER: /supplier-portal, /profile
  *     - ADMIN: /admin, /admin/suppliers, /admin/offers, /admin/pools, /admin/audit
  *     - REVIEWER: /reviewer -> /admin
@@ -303,6 +303,32 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
         expect(screen.getByRole('heading', { name: /^Sign in$/i })).toBeInTheDocument();
       });
     });
+
+    it('redirects unauthenticated user accessing /payments to /login', async () => {
+      setupMockAuth({ user: null, loading: false });
+      render(
+        <MemoryRouter initialEntries={['/payments']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /^Sign in$/i })).toBeInTheDocument();
+      });
+    });
+
+    it('redirects unauthenticated user accessing /refunds to /login', async () => {
+      setupMockAuth({ user: null, loading: false });
+      render(
+        <MemoryRouter initialEntries={['/refunds']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /^Sign in$/i })).toBeInTheDocument();
+      });
+    });
   });
 
   // ── 5. Role Protection & Forbidden State ──────────────────────────────────
@@ -371,6 +397,30 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       setupMockAuth({ user: mockAdmin });
       render(
         <MemoryRouter initialEntries={['/group-buys/create']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByRole('heading', { name: /Access Restricted/i })).toBeInTheDocument();
+      expect(screen.getByText(/does not have permission to access this page/i)).toBeInTheDocument();
+    });
+
+    it('shows Forbidden state when SUPPLIER attempts to access /payments', () => {
+      setupMockAuth({ user: mockSupplier });
+      render(
+        <MemoryRouter initialEntries={['/payments']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByRole('heading', { name: /Access Restricted/i })).toBeInTheDocument();
+      expect(screen.getByText(/does not have permission to access this page/i)).toBeInTheDocument();
+    });
+
+    it('shows Forbidden state when SUPPLIER attempts to access /refunds', () => {
+      setupMockAuth({ user: mockSupplier });
+      render(
+        <MemoryRouter initialEntries={['/refunds']}>
           <AppRoutes />
         </MemoryRouter>
       );
@@ -460,8 +510,19 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('Payments & Refunds Ledger')).toBeInTheDocument();
-      expect(screen.getByText('Wave 4 (SUJ-06)')).toBeInTheDocument();
+      expect(screen.getByTestId('payments-page')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Payments & Settlement Ledger/i })).toBeInTheDocument();
+    });
+
+    it('renders /refunds inside AppShellLayout', () => {
+      render(
+        <MemoryRouter initialEntries={['/refunds']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByTestId('refunds-page')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Refunds & Savings Tracker/i })).toBeInTheDocument();
     });
 
     it('renders /profile inside AppShellLayout', () => {
