@@ -8,7 +8,7 @@
  *  4. Route protection: Unauthenticated visitors redirected to /login
  *  5. Role protection: 403 Forbidden state rendered when role is disallowed
  *  6. Role routes:
- *     - SHOP_OWNER: /dashboard, /requirements, /suppliers, /group-buys, /orders, /payments, /profile
+ *     - SHOP_OWNER: /dashboard, /requirements, /suppliers, /group-buys, /group-buys/create, /orders, /payments, /profile
  *     - SUPPLIER: /supplier-portal, /profile
  *     - ADMIN: /admin, /admin/suppliers, /admin/offers, /admin/pools, /admin/audit
  *     - REVIEWER: /reviewer -> /admin
@@ -277,6 +277,32 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
         expect(screen.getByRole('heading', { name: /^Sign in$/i })).toBeInTheDocument();
       });
     });
+
+    it('redirects unauthenticated user accessing /group-buys to /login', async () => {
+      setupMockAuth({ user: null, loading: false });
+      render(
+        <MemoryRouter initialEntries={['/group-buys']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /^Sign in$/i })).toBeInTheDocument();
+      });
+    });
+
+    it('redirects unauthenticated user accessing /group-buys/create to /login', async () => {
+      setupMockAuth({ user: null, loading: false });
+      render(
+        <MemoryRouter initialEntries={['/group-buys/create']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /^Sign in$/i })).toBeInTheDocument();
+      });
+    });
   });
 
   // ── 5. Role Protection & Forbidden State ──────────────────────────────────
@@ -315,6 +341,42 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       );
 
       expect(screen.getByRole('heading', { name: /Access Restricted/i })).toBeInTheDocument();
+    });
+
+    it('shows Forbidden state when SUPPLIER attempts to access /group-buys', () => {
+      setupMockAuth({ user: mockSupplier });
+      render(
+        <MemoryRouter initialEntries={['/group-buys']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByRole('heading', { name: /Access Restricted/i })).toBeInTheDocument();
+      expect(screen.getByText(/does not have permission to access this page/i)).toBeInTheDocument();
+    });
+
+    it('shows Forbidden state when SUPPLIER attempts to access /group-buys/create', () => {
+      setupMockAuth({ user: mockSupplier });
+      render(
+        <MemoryRouter initialEntries={['/group-buys/create']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByRole('heading', { name: /Access Restricted/i })).toBeInTheDocument();
+      expect(screen.getByText(/does not have permission to access this page/i)).toBeInTheDocument();
+    });
+
+    it('shows Forbidden state when ADMIN attempts to access /group-buys/create', () => {
+      setupMockAuth({ user: mockAdmin });
+      render(
+        <MemoryRouter initialEntries={['/group-buys/create']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByRole('heading', { name: /Access Restricted/i })).toBeInTheDocument();
+      expect(screen.getByText(/does not have permission to access this page/i)).toBeInTheDocument();
     });
   });
 
@@ -365,8 +427,19 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('Group-Buy Pools Marketplace')).toBeInTheDocument();
-      expect(screen.getByText('Wave 4 (SUJ-02 / SUJ-03)')).toBeInTheDocument();
+      expect(screen.getByTestId('group-buy-marketplace')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Group-Buy Marketplace/i })).toBeInTheDocument();
+    });
+
+    it('renders /group-buys/create inside AppShellLayout', () => {
+      render(
+        <MemoryRouter initialEntries={['/group-buys/create']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      expect(screen.getByTestId('group-buy-create-page')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Publish 72h Group-Buy Pool/i })).toBeInTheDocument();
     });
 
     it('renders /orders inside AppShellLayout', () => {

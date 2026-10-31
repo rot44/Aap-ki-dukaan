@@ -19,7 +19,8 @@
  *       /dashboard          Retailer Operations Dashboard
  *       /requirements       AI Requirement Intake & Management
  *       /suppliers          Supplier Catalogue & Wholesaler Discovery
- *       /group-buys         Group-Buy Pools Marketplace
+ *       /group-buys         Group-Buy Pools Marketplace (SUJ-02)
+ *       /group-buys/create  Create Group-Buy Pool (SUJ-02)
  *       /orders             Finalized Group Orders & Fulfillment
  *       /payments           Payments, Refunds & PayPal Sandbox Settlement
  *       /profile            Shop Profile & Delivery Configuration
@@ -82,6 +83,8 @@ import LoginPage from '@/pages/auth/LoginPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
 import AppShellLayout from '@/layouts/AppShellLayout';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import GroupBuyMarketplacePage from '@/pages/groupBuys/GroupBuyMarketplacePage';
+import GroupBuyCreatePage from '@/pages/groupBuys/GroupBuyCreatePage';
 
 // ── Role Landing Destinations ─────────────────────────────────────────────────
 export function getRoleHome(role) {
@@ -359,14 +362,20 @@ export function AppRoutes() {
             title="Group-Buy Pools"
             subtitle="Active regional collective buying pools and tier progression"
           >
-            <FeaturePlaceholder
-              title="Group-Buy Pools Marketplace"
-              description="72-hour collective buying pools uniting regional demand. Track live Q_pool progress toward wholesaler MOQs, watch bulk price tiers unlock, and join with guaranteed 20% retailer minimums."
-              wave="Wave 4 (SUJ-02 / SUJ-03)"
-              owner="Suraj"
-              roles={['SHOP_OWNER']}
-              icon={Users}
-            />
+            <GroupBuyMarketplacePage />
+          </ProtectedShellRoute>
+        }
+      />
+
+      <Route
+        path="/group-buys/create"
+        element={
+          <ProtectedShellRoute
+            allowedRoles={['SHOP_OWNER']}
+            title="Create Group-Buy Pool"
+            subtitle="Publish a 72-hour collective buying pool from a confirmed requirement"
+          >
+            <GroupBuyCreatePage />
           </ProtectedShellRoute>
         }
       />
