@@ -55,7 +55,7 @@ export function LandingPage({
   const [calcShopC, setCalcShopC] = useState(25);
 
   // Group Buy Active Deals Mock Data (verified demonstration)
-  const initialPools = [
+  const [pools, setPools] = useState([
     {
       id: 'pool-1',
       title: '12oz Eco Kraft Paper Cups (Carton of 1,000)',
@@ -140,7 +140,7 @@ export function LandingPage({
       participantCount: 16,
       provenance: 'MP Sharbati Wheat · Zero Additives',
     },
-  ];
+  ]);
 
   // Direct Catalog Products
   const catalogProducts = [
@@ -218,7 +218,7 @@ export function LandingPage({
   ];
 
   // Filter pools by search & category
-  const filteredPools = initialPools.filter((pool) => {
+  const filteredPools = pools.filter((pool) => {
     const matchesCategory =
       selectedCategory === 'all' ||
       selectedCategory === 'group-buys' ||
@@ -256,10 +256,41 @@ export function LandingPage({
 
   const handleConfirmJoin = () => {
     if (!selectedPoolForJoin) return;
+    const addedQty = joinQuantity;
+    const poolId = selectedPoolForJoin.id;
+    const poolTitle = selectedPoolForJoin.title;
+    const poolUnit = selectedPoolForJoin.unit;
+    const calculatedCost = (addedQty * selectedPoolForJoin.currentTierPrice).toLocaleString('en-IN');
+
+    setPools((prevPools) =>
+      prevPools.map((p) => {
+        if (p.id === poolId) {
+          const newPooled = p.pooledQuantity + addedQty;
+          return {
+            ...p,
+            pooledQuantity: newPooled,
+            participantCount: (p.participantCount || 0) + 1,
+          };
+        }
+        return p;
+      })
+    );
+
     toast.success(
-      `Joined pool for ${joinQuantity} ${selectedPoolForJoin.unit}! Estimated cost: ₹${(
-        joinQuantity * selectedPoolForJoin.currentTierPrice
-      ).toLocaleString('en-IN')}`
+      `Order placed! Joined ${poolTitle} for ${addedQty} ${poolUnit} (₹${calculatedCost}). Pool progress updated!`,
+      {
+        duration: 5000,
+        action: {
+          label: 'View Group Buys',
+          onClick: () => {
+            if (typeof onNavigate === 'function') {
+              onNavigate('/group-buys');
+            } else if (typeof window !== 'undefined') {
+              window.location.href = '/group-buys';
+            }
+          },
+        },
+      }
     );
     setSelectedPoolForJoin(null);
   };
@@ -408,7 +439,7 @@ export function LandingPage({
                     variant="primary"
                     size="sm"
                     className="font-semibold text-xs"
-                    onClick={() => handleOpenJoinModal(initialPools[0])}
+                    onClick={() => handleOpenJoinModal(pools[0])}
                   >
                     Join This Pool
                   </Button>
