@@ -199,6 +199,13 @@ async function seedMasterData() {
     { email: 'wholesaler2@example.com', name: 'Rajesh Singhal (Supplier 2)', role: 'SUPPLIER', shopName: 'Ganga FMCG Depot', area: 'LUCKNOW' },
     { email: 'admin@example.com', name: 'System Administrator', role: 'ADMIN', shopName: 'Platform Ops HQ', area: 'LUCKNOW' },
     { email: 'reviewer@example.com', name: 'Compliance Reviewer', role: 'REVIEWER', shopName: 'Audit Review Room', area: 'LUCKNOW' },
+    // Frontend Demo Buttons aliases (Docs/database_schemas.md)
+    { email: 'cafea@demo.aapkidukan.in', name: 'Hazratganj Artisan Café (Shop A)', role: 'SHOP_OWNER', shopName: 'Hazratganj Artisan Café', area: 'LUCKNOW' },
+    { email: 'bakeryb@demo.aapkidukan.in', name: 'Gomti Bakery & Espresso (Shop B)', role: 'SHOP_OWNER', shopName: 'Gomti Bakery & Espresso', area: 'LUCKNOW' },
+    { email: 'bistroc@demo.aapkidukan.in', name: 'Awadh Bistro & Roasters (Shop C)', role: 'SHOP_OWNER', shopName: 'Awadh Bistro & Roasters', area: 'LUCKNOW' },
+    { email: 'supplier1@demo.aapkidukan.in', name: 'Bharat EcoPack', role: 'SUPPLIER', shopName: 'Bharat EcoPack Distribution Hub', area: 'LUCKNOW' },
+    { email: 'admin@demo.aapkidukan.in', name: 'Platform Admin', role: 'ADMIN', shopName: 'Platform Ops HQ', area: 'LUCKNOW' },
+    { email: 'reviewer@demo.aapkidukan.in', name: 'Read-Only Evaluator', role: 'REVIEWER', shopName: 'Audit Review Room', area: 'LUCKNOW' },
   ];
 
   const userMap = {};
