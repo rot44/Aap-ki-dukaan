@@ -392,26 +392,6 @@ export function AppRoutes() {
       />
 
       <Route
-        path="/group-buys/create"
-        element={
-          <ProtectedShellRoute
-            allowedRoles={['SHOP_OWNER']}
-            title="Create Group-Buy Pool"
-            subtitle="Initiate collective buying pool from supplier offer"
-          >
-            <FeaturePlaceholder
-              title="Create Group-Buy Pool"
-              description="Initiate a collective buying pool using this supplier offer. Group-Buy pool creation is part of Wave 4 (SUJ-02)."
-              wave="Wave 4 (SUJ-02)"
-              owner="Suraj"
-              roles={['SHOP_OWNER']}
-              icon={Users}
-            />
-          </ProtectedShellRoute>
-        }
-      />
-
-      <Route
         path="/group-buys"
         element={
           <ProtectedShellRoute
