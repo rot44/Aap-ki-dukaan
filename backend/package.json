@@ -8,6 +8,7 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
+    "mongo": "node scripts/startLocalMongo.js",
     "seed": "node scripts/seedDemoData.js",
     "test": "vitest run",
     "test:watch": "vitest"

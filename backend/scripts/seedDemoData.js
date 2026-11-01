@@ -152,9 +152,10 @@ async function seedMasterData() {
         { minQuantity: 30, unitPriceMinor: 9000 },
         { minQuantity: 60, unitPriceMinor: 8000 },
       ],
-      shippingCostMinor: 0,
+      flatShippingCostMinor: 0,
       shippingAllocationMethod: 'PER_UNIT',
-      validUntil: new Date(Date.now() + 30 * 86400000),
+      deliveryAreas: ['LUCKNOW', 'KANPUR', 'AGRA'],
+      expiresAt: new Date(Date.now() + 30 * 86400000),
       dataSourceType: 'SEEDED_DEMO',
       verificationStatus: 'DEMO_SAMPLE',
       isActive: true,
@@ -178,9 +179,10 @@ async function seedMasterData() {
         { minQuantity: 500, unitPriceMinor: 46000 },
         { minQuantity: 1000, unitPriceMinor: 42000 },
       ],
-      shippingCostMinor: 500000,
+      flatShippingCostMinor: 500000,
       shippingAllocationMethod: 'PER_UNIT',
-      validUntil: new Date(Date.now() + 30 * 86400000),
+      deliveryAreas: ['LUCKNOW', 'KANPUR', 'AGRA', 'NOIDA'],
+      expiresAt: new Date(Date.now() + 30 * 86400000),
       dataSourceType: 'SEEDED_DEMO',
       verificationStatus: 'DEMO_SAMPLE',
       isActive: true,
@@ -244,6 +246,7 @@ async function seedMasterData() {
   if (!cupPool) {
     cupPool = await GroupBuyPool.create({
       title: 'Lucknow Kirana Bio-Cups Bulk Pool (₹4,800 Goal)',
+      createdByUserId: userMap['retailer1@example.com']._id,
       productId: cupProduct._id,
       supplierOfferId: cupOffer._id,
       deliveryArea: 'LUCKNOW',
@@ -272,27 +275,6 @@ async function seedMasterData() {
         { minQuantity: 60, unitPriceMinor: 8000 },
       ],
     });
-
-    // Create Price Snapshot version 1
-    const snapshot = await PriceSnapshot.create({
-      poolId: cupPool._id,
-      supplierId: supplier1._id,
-      supplierOfferId: cupOffer._id,
-      snapshotVersion: 1,
-      status: 'FROZEN_ACTIVE',
-      currency: 'INR',
-      totalCommittedQuantity: 60,
-      unitPriceMinor: 8000,
-      merchandiseTotalMinor: 480000, // ₹4,800
-      shippingTotalMinor: 0,
-      grandTotalMinor: 480000,
-      termsAndConditions: 'Wholesale collective delivery within Lucknow Kirana zone.',
-      frozenAt: new Date(),
-    });
-
-    cupPool.activePriceSnapshotId = snapshot._id;
-    cupPool.snapshotVersion = 1;
-    await cupPool.save();
 
     // Contributions: Shop A (20 boxes), Shop B (15 boxes), Shop C (25 boxes) = 60 boxes
     const contribA = await Contribution.create({
@@ -337,6 +319,63 @@ async function seedMasterData() {
       state: 'ACTIVE',
     });
 
+    // Create Price Snapshot version 1
+    const snapshot = await PriceSnapshot.create({
+      poolId: cupPool._id,
+      version: 1,
+      supplierOfferId: cupOffer._id,
+      currency: 'INR',
+      totalEligibleQuantity: 60,
+      baseUnitPriceMinor: 10000,
+      appliedUnitPriceMinor: 8000,
+      merchandiseTotalMinor: 480000, // ₹4,800
+      shippingCostMinor: 0,
+      shippingStatus: 'KNOWN',
+      groupTotalPayableMinor: 480000,
+      memberShares: [
+        {
+          contributionId: contribA._id,
+          shopId: contribA.shopId,
+          quantity: 20,
+          unit: 'BOX',
+          appliedUnitPriceMinor: 8000,
+          merchandiseShareMinor: 160000,
+          shippingShareMinor: 0,
+          roundingAdjustmentMinor: 0,
+          totalPayableMinor: 160000,
+          verifiedSavingsMinor: 40000,
+        },
+        {
+          contributionId: contribB._id,
+          shopId: contribB.shopId,
+          quantity: 15,
+          unit: 'BOX',
+          appliedUnitPriceMinor: 8000,
+          merchandiseShareMinor: 120000,
+          shippingShareMinor: 0,
+          roundingAdjustmentMinor: 0,
+          totalPayableMinor: 120000,
+          verifiedSavingsMinor: 30000,
+        },
+        {
+          contributionId: contribC._id,
+          shopId: contribC.shopId,
+          quantity: 25,
+          unit: 'BOX',
+          appliedUnitPriceMinor: 8000,
+          merchandiseShareMinor: 200000,
+          shippingShareMinor: 0,
+          roundingAdjustmentMinor: 0,
+          totalPayableMinor: 200000,
+          verifiedSavingsMinor: 50000,
+        },
+      ],
+    });
+
+    cupPool.latestPriceSnapshotId = snapshot._id;
+    cupPool.priceBreakdownVersion = 1;
+    await cupPool.save();
+
     // Seed Verified Captured Payments
     for (const [contrib, amount] of [
       [contribA, 160000],
@@ -378,6 +417,7 @@ async function seedMasterData() {
   if (!ricePool) {
     ricePool = await GroupBuyPool.create({
       title: 'Lucknow Wholesale Basmati Rice Pool (1000 MOQ)',
+      createdByUserId: userMap['retailer1@example.com']._id,
       productId: riceProduct._id,
       supplierOfferId: riceOffer._id,
       deliveryArea: 'LUCKNOW',
@@ -427,6 +467,7 @@ async function seedMasterData() {
   if (!underMoqPool) {
     underMoqPool = await GroupBuyPool.create({
       title: 'Lucknow Premium Rice Pool (Under-MOQ Resolution)',
+      createdByUserId: userMap['retailer1@example.com']._id,
       productId: riceProduct._id,
       supplierOfferId: riceOffer._id,
       deliveryArea: 'LUCKNOW',
@@ -502,10 +543,11 @@ async function seedMasterData() {
 
   // ── 9. Audit Log Event ──────────────────────────────────────────────────────
   await AuditLog.create({
+    correlationId: 'seed-demo-data-' + Date.now(),
     actorId: userMap['admin@example.com']._id,
     actorRole: 'ADMIN',
     action: 'SEED_DEMO_DATA',
-    resourceType: 'PLATFORM',
+    resourceType: 'POOL',
     resourceId: userMap['admin@example.com']._id.toString(),
     metadata: {
       scenariosSeeded: 4,

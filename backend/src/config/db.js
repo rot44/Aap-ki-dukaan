@@ -10,6 +10,7 @@ const MONGO_OPTIONS = {
 };
 
 let isConnected = false;
+let memoryServer = null;
 
 export const connectDB = async (uri = null) => {
   if (isConnected && mongoose.connection.readyState === 1) {
@@ -24,6 +25,36 @@ export const connectDB = async (uri = null) => {
     console.log(`MongoDB connected successfully: host=${connectionInstance.connection.host}`);
     return connectionInstance;
   } catch (err) {
+    // If running in development and local mongo isn't up, spin up MongoMemoryServer fallback
+    if (process.env.NODE_ENV === "development" && !uri) {
+      try {
+        console.warn(`Local MongoDB not detected at ${connectionString}. Starting MongoMemoryServer fallback...`);
+        const { MongoMemoryServer } = await import("mongodb-memory-server");
+        memoryServer = await MongoMemoryServer.create({
+          instance: { port: 27017, dbName: DB_NAME },
+        });
+        const memUri = memoryServer.getUri();
+        const connectionInstance = await mongoose.connect(memUri, MONGO_OPTIONS);
+        isConnected = true;
+        console.log(`Embedded MongoMemoryServer connected successfully at: ${memUri}`);
+        return connectionInstance;
+      } catch (memErr) {
+        try {
+          const { MongoMemoryServer } = await import("mongodb-memory-server");
+          if (!memoryServer) {
+            memoryServer = await MongoMemoryServer.create({ instance: { dbName: DB_NAME } });
+          }
+          const memUri = memoryServer.getUri();
+          const connectionInstance = await mongoose.connect(memUri, MONGO_OPTIONS);
+          isConnected = true;
+          console.log(`Embedded MongoMemoryServer connected on dynamic port: ${memUri}`);
+          return connectionInstance;
+        } catch (dynErr) {
+          console.error("Failed to start MongoMemoryServer fallback:", dynErr.message);
+        }
+      }
+    }
+
     console.error("MongoDB connection failed:", err.message);
     if (process.env.NODE_ENV !== "test") {
       process.exit(1);
@@ -36,6 +67,10 @@ export const disconnectDB = async () => {
   if (mongoose.connection.readyState !== 0) {
     await mongoose.disconnect();
     isConnected = false;
+  }
+  if (memoryServer) {
+    await memoryServer.stop();
+    memoryServer = null;
   }
 };
 
