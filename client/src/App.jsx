@@ -22,7 +22,8 @@
  *       /group-buys         Group-Buy Pools Marketplace (SUJ-02)
  *       /group-buys/create  Create Group-Buy Pool (SUJ-02)
  *       /orders             Finalized Group Orders & Fulfillment
- *       /payments           Payments, Refunds & PayPal Sandbox Settlement
+ *       /payments           Payments & Settlement Ledger (SUJ-06)
+ *       /refunds            Refunds & Savings Tracker (SUJ-06)
  *       /profile            Shop Profile & Delivery Configuration
  *
  *     SUPPLIER:
@@ -63,7 +64,6 @@ import {
   Store,
   Users,
   Package,
-  CreditCard,
   User,
   Shield,
   Bell,
@@ -85,6 +85,8 @@ import AppShellLayout from '@/layouts/AppShellLayout';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import GroupBuyMarketplacePage from '@/pages/groupBuys/GroupBuyMarketplacePage';
 import GroupBuyCreatePage from '@/pages/groupBuys/GroupBuyCreatePage';
+import PaymentsPage from '@/pages/payments/PaymentsPage';
+import RefundsPage from '@/pages/payments/RefundsPage';
 
 // ── Role Landing Destinations ─────────────────────────────────────────────────
 export function getRoleHome(role) {
@@ -408,14 +410,20 @@ export function AppRoutes() {
             title="Payments & Refunds"
             subtitle="Paise-accurate transaction history and PayPal Sandbox settlement"
           >
-            <FeaturePlaceholder
-              title="Payments & Refunds Ledger"
-              description="Paise-accurate transaction history with PayPal Sandbox settlement tracking, tier savings refund processing, and under-MOQ balance reconciliations."
-              wave="Wave 4 (SUJ-06)"
-              owner="Suraj"
-              roles={['SHOP_OWNER']}
-              icon={CreditCard}
-            />
+            <PaymentsPage />
+          </ProtectedShellRoute>
+        }
+      />
+
+      <Route
+        path="/refunds"
+        element={
+          <ProtectedShellRoute
+            allowedRoles={['SHOP_OWNER']}
+            title="Refunds & Savings"
+            subtitle="Multi-state refund tracking, tier-drop savings and order cancellation reversals"
+          >
+            <RefundsPage />
           </ProtectedShellRoute>
         }
       />
