@@ -240,7 +240,7 @@ export function GroupBuyMarketplacePage() {
 
         <Button
           variant="primary"
-          onClick={() => navigate('/group-buys/create')}
+          onClick={() => navigate(`/group-buys/${pool._id}`)}
           className="self-start sm:self-auto gap-2"
         >
           <Plus className="h-4 w-4" />
@@ -529,16 +529,14 @@ export function GroupBuyMarketplacePage() {
                   <Button
                     variant={isRecruiting ? 'primary' : 'outline'}
                     size="sm"
-                    disabled={!isRecruiting}
+                    
                     className="w-full justify-between"
                     onClick={() => {
-                      if (isRecruiting) {
-                        navigate('/group-buys/create');
-                      }
+                      navigate('/group-buys/' + pool._id);
                     }}
                   >
-                    <span>{isRecruiting ? 'Contribute to Pool' : 'Recruitment Closed'}</span>
-                    {isRecruiting && <ArrowRight className="h-4 w-4" />}
+                    <span>{isRecruiting ? 'Contribute to Pool' : 'View Pool Details'}</span>
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

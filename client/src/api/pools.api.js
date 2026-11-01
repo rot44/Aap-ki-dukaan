@@ -1,11 +1,16 @@
 /**
- * CoBuy AI — Pools & Marketplace API Client (SUJ-02)
+ * CoBuy AI — Pools & Marketplace API Client (SUJ-02 / SUJ-03 / SUJ-04 / SUJ-05)
  *
  * Implements client-side calls for:
  *  - GET  /api/pools                   (Marketplace pool discovery with filters)
  *  - GET  /api/pools/:id               (Detailed pool specs, snapshot, contributions)
  *  - POST /api/pools                   (Publish 72h recruiting group-buy pool)
  *  - POST /api/pools/:id/contributions (Join pool with initial commitment)
+ *  - PATCH /api/pools/:id/contributions/:cid (Edit quantity pre-lock)
+ *  - POST /api/pools/:id/contributions/:cid/withdraw (Withdraw pre-lock)
+ *  - POST /api/pools/:id/approve       (Explicit versioned PriceSnapshot approval)
+ *  - POST /api/pools/:id/decision      (24h Under-MOQ buyer decision)
+ *  - POST /api/pools/:id/supplier-feasibility (Supplier under-MOQ response)
  *  - GET  /api/requirements?status=CONFIRMED (Retrieve eligible confirmed requirements)
  *  - GET  /api/requirements/:id/matches (Authoritative AI Two-Stage offer matching)
  *  - GET  /api/offers/search           (Supplier wholesale catalogue search)
@@ -195,17 +200,6 @@ export async function fetchProductCatalogue() {
  * Publish a new 72-hour group-buy pool.
  *
  * @param {object} payload
- * @param {string} payload.title
- * @param {string} payload.productId
- * @param {string} payload.supplierOfferId
- * @param {string} payload.deliveryArea
- * @param {string} payload.packUnit
- * @param {number} payload.minimumOrderQuantity - Wholesaler MOQ (MOQ_W)
- * @param {number} payload.baseUnitPriceMinor
- * @param {number} [payload.retailerMoqPercentage=20]
- * @param {number} [payload.retailerStepPercentage=1]
- * @param {number} [payload.shippingCostMinor]
- * @param {string} [payload.currency='INR']
  * @returns {Promise<object>} Created GroupBuyPool
  */
 export async function createPool(payload) {
@@ -218,10 +212,6 @@ export async function createPool(payload) {
  *
  * @param {string} poolId
  * @param {object} payload
- * @param {number} payload.quantity
- * @param {string} [payload.unit]
- * @param {string} [payload.requirementId]
- * @param {boolean} [payload.acceptSubstitution=false]
  * @returns {Promise<object>} Created Contribution
  */
 export async function joinPool(poolId, payload) {
@@ -230,7 +220,74 @@ export async function joinPool(poolId, payload) {
   return unwrap(res, null);
 }
 
-export default {
+/**
+ * Update contribution quantity during open recruitment window.
+ *
+ * @param {string} poolId
+ * @param {string} contributionId
+ * @param {number} quantity
+ * @returns {Promise<object>}
+ */
+export async function updateContributionQuantity(poolId, contributionId, quantity) {
+  if (!poolId || !contributionId) throw new Error('Pool ID and Contribution ID are required.');
+  const res = await axiosClient.patch(`/pools/${poolId}/contributions/${contributionId}`, { quantity });
+  return unwrap(res, null);
+}
+
+/**
+ * Withdraw contribution during open recruitment window.
+ *
+ * @param {string} poolId
+ * @param {string} contributionId
+ * @param {string} [reason='BUYER_WITHDRAWAL']
+ * @returns {Promise<object>}
+ */
+export async function withdrawContribution(poolId, contributionId, reason = 'BUYER_WITHDRAWAL') {
+  if (!poolId || !contributionId) throw new Error('Pool ID and Contribution ID are required.');
+  const res = await axiosClient.post(`/pools/${poolId}/contributions/${contributionId}/withdraw`, { reason });
+  return unwrap(res, null);
+}
+
+/**
+ * Submit explicit approval for a versioned PriceSnapshot.
+ *
+ * @param {string} poolId
+ * @param {string} priceSnapshotId
+ * @returns {Promise<object>}
+ */
+export async function approvePriceSnapshot(poolId, priceSnapshotId) {
+  if (!poolId) throw new Error('Pool ID is required.');
+  const res = await axiosClient.post(`/pools/${poolId}/approve`, { priceSnapshotId });
+  return unwrap(res, null);
+}
+
+/**
+ * Submit buyer decision in 24h Under-MOQ window (PROCEED / CANCEL).
+ *
+ * @param {string} poolId
+ * @param {'PROCEED'|'CANCEL'} decision
+ * @returns {Promise<object>}
+ */
+export async function submitUnderMoqDecision(poolId, decision) {
+  if (!poolId) throw new Error('Pool ID is required.');
+  const res = await axiosClient.post(`/pools/${poolId}/decision`, { decision });
+  return unwrap(res, null);
+}
+
+/**
+ * Submit supplier feasibility response for an under-MOQ pool.
+ *
+ * @param {string} poolId
+ * @param {object} payload
+ * @returns {Promise<object>}
+ */
+export async function submitSupplierFeasibility(poolId, payload) {
+  if (!poolId) throw new Error('Pool ID is required.');
+  const res = await axiosClient.post(`/pools/${poolId}/supplier-feasibility`, payload);
+  return unwrap(res, null);
+}
+
+export const poolsApi = {
   fetchPools,
   fetchPoolById,
   fetchConfirmedRequirements,
@@ -239,4 +296,11 @@ export default {
   fetchProductCatalogue,
   createPool,
   joinPool,
+  updateContributionQuantity,
+  withdrawContribution,
+  approvePriceSnapshot,
+  submitUnderMoqDecision,
+  submitSupplierFeasibility,
 };
+
+export default poolsApi;

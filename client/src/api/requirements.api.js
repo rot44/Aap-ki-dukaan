@@ -154,98 +154,98 @@ export async function updateRequirement(requirementId, updates) {
   return axiosClient.patch(`/requirements/${requirementId}`, updates);
 }
 
-// ─── Confirm Requirement (Rule BR-001) ────────────────────────────────────────
+// ─── Confirm Requirement ──────────────────────────────────────────────────────
 /**
- * PATCH /api/requirements/:id
+ * PATCH /api/requirements/:id/confirm
  *
- * Confirms requirement with buyer-reviewed confirmedFields.
- * Backend enforces Rule BR-001 (productName, category, requestedQuantity, quantityUnit, deliveryArea).
+ * Marks requirement status as CONFIRMED with verified fields.
  *
  * @param {string} requirementId
- * @param {object} confirmedFields
+ * @param {object} confirmedFields  Confirmed product & quantity specifications
  * @returns {Promise<{data: {statusCode: number, data: object, message: string}}>}
  */
-export async function confirmRequirement(requirementId, confirmedFields) {
-  return updateRequirement(requirementId, {
-    status: REQUIREMENT_STATUS.CONFIRMED,
+export async function confirmRequirement(requirementId, confirmedFields = {}) {
+  return axiosClient.patch(`/requirements/${requirementId}/confirm`, {
     confirmedFields,
   });
 }
 
 // ─── Reject Requirement ───────────────────────────────────────────────────────
 /**
- * PATCH /api/requirements/:id
+ * PATCH /api/requirements/:id/reject
  *
- * Rejects requirement with explicit user confirmation.
+ * Rejects requirement (e.g. invalid document or user cancelled).
  *
  * @param {string} requirementId
  * @returns {Promise<{data: {statusCode: number, data: object, message: string}}>}
  */
 export async function rejectRequirement(requirementId) {
-  return updateRequirement(requirementId, {
-    status: REQUIREMENT_STATUS.REJECTED,
-  });
+  return axiosClient.patch(`/requirements/${requirementId}/reject`);
 }
 
-// ─── Get Candidate Matching Offers (SAH-06) ───────────────────────────────────
+// ─── Get Compatible Supplier Offers ──────────────────────────────────────────
 /**
  * GET /api/requirements/:id/matches
  *
- * Fetches qualified and evaluated wholesaler supplier offers for a CONFIRMED requirement.
+ * Returns qualified and filtered-out supplier offers for this requirement.
  *
  * @param {string} requirementId
- * @returns {Promise<{data: {statusCode: number, data: {qualifiedMatches: object[], filteredOutOffers: object[], totalEvaluated: number, totalQualified: number}}}>}
+ * @returns {Promise<{data: {statusCode: number, data: {qualifiedMatches: object[], filteredOutOffers: object[]}, message: string}}>}
  */
 export async function getRequirementMatches(requirementId) {
   return axiosClient.get(`/requirements/${requirementId}/matches`);
 }
 
-// ─── Upload Document ──────────────────────────────────────────────────────────
+// ─── Upload Private Document ──────────────────────────────────────────────────
 /**
  * POST /api/uploads
  *
- * Uploads a single document file (PDF / PNG / JPG / WEBP ≤ 10 MB).
- * Backend route: router.post("/", documentUploadMiddleware("document"), uploadDocument)
- * Expected multipart field name: "document"
+ * Uploads a document (PDF, PNG, JPG, WEBP <= 10 MB) via multipart/form-data.
  *
- * @param {File} file  Browser File object
- * @param {function} onProgress  Optional progress callback
- * @returns {Promise<{data: {statusCode: number, data: {_id: string, originalFilename: string, mimeType: string, sizeBytes: number}}}>}
+ * @param {File}     file        File to upload
+ * @param {Function} [onProgress] Progress callback (percent: number)
+ * @returns {Promise<{data: {statusCode: number, data: {uploadedDocumentId: string, originalName: string, ...}, message: string}}>}
  */
 export async function uploadDocument(file, onProgress) {
-  validateUploadFile(file); // throws descriptive Error on invalid file
+  validateUploadFile(file);
 
   const formData = new FormData();
-  formData.append('document', file); // Matches backend multer field "document"
+  formData.append('document', file);
 
-  return axiosClient.post('/uploads', formData);
+  return axiosClient.post('/uploads', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    onUploadProgress: (progressEvent) => {
+      if (onProgress && progressEvent.total) {
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress(percent);
+      }
+    },
+  });
 }
 
-// ─── Create Requirement from Upload ──────────────────────────────────────────
+// ─── Create Requirement from Uploaded Document ────────────────────────────────
 /**
  * POST /api/requirements
  *
- * After uploading a document, create a requirement linked to the upload.
- * Backend expects: { sourceType: "PDF"|"IMAGE", uploadedDocumentId: string, originalDescription: string }
+ * Links an uploaded document to a new requirement and initiates AI extraction.
+ * Backend expects: { sourceType: "PDF"|"IMAGE", uploadedDocumentId: string, ... }
  *
- * @param {string} uploadId  ID returned by uploadDocument() (document._id)
- * @param {string} [title]   Optional human-readable title or originalFilename
- * @param {object} [options] Optional { mimeType: string }
+ * @param {string} uploadId  The uploadedDocumentId from uploadDocument()
+ * @param {string} title     Display title
+ * @param {object} [options] Additional options (category, deliveryArea, etc.)
  * @returns {Promise<{data: {statusCode: number, data: object, message: string}}>}
  */
 export async function createRequirementFromUpload(uploadId, title, options = {}) {
-  const mimeType = options.mimeType || '';
-  const isImage = mimeType.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(title || '');
-  const sourceType = isImage ? 'IMAGE' : 'PDF';
-
   return axiosClient.post('/requirements', {
-    sourceType,
-    source: isImage ? 'IMAGE' : 'PDF',
     uploadedDocumentId: uploadId,
-    uploadId, // backward compat
-    originalDescription: title || (isImage ? 'Uploaded receipt/image' : 'Uploaded document/invoice'),
-    status: REQUIREMENT_STATUS.DRAFT,
-    ...(title ? { title } : {}),
+    sourceType: options.sourceType || 'PDF',
+    source: REQUIREMENT_SOURCE.DOCUMENT_UPLOAD,
+    originalDescription: title || 'Document Upload',
+    title: title || 'Document Upload',
+    status: REQUIREMENT_STATUS.PROCESSING,
+    ...options,
   });
 }
 
@@ -253,8 +253,7 @@ export async function createRequirementFromUpload(uploadId, title, options = {})
 /**
  * POST /api/requirements/:id/extract
  *
- * Triggers AI attribute extraction on an existing requirement (SAH-04).
- * Backend updates extractedFields and transitions status to NEEDS_REVIEW (or FAILED_EXTRACTION).
+ * Retries or triggers AI extraction for a requirement with an attached document.
  *
  * @param {string} requirementId
  * @returns {Promise<{data: {statusCode: number, data: object, message: string}}>}
@@ -263,40 +262,46 @@ export async function triggerExtraction(requirementId) {
   return axiosClient.post(`/requirements/${requirementId}/extract`);
 }
 
-// ─── CSV Bulk Import ──────────────────────────────────────────────────────────
+// ─── Bulk Import from CSV ─────────────────────────────────────────────────────
 /**
- * POST /api/requirements/import-csv
+ * POST /api/requirements/csv-import
  *
- * Sends a CSV file for bulk requirement creation (SAH-02).
- * Backend route: router.post("/import-csv", conditionalCsvUpload, importCsvRequirements)
- * Expected multipart field name: "file"
+ * Parses and validates CSV rows, creating draft requirements in bulk.
  *
- * @param {File} csvFile  Browser File object (text/csv or .csv extension)
- * @returns {Promise<{data: {statusCode: number, data: {totalImported: number, requirements: object[]}}}>}
+ * @param {File} csvFile
+ * @returns {Promise<{data: {statusCode: number, data: {created: object[], errors: object[]}, message: string}}>}
  */
 export async function importRequirementsFromCsv(csvFile) {
+  if (!csvFile) {
+    throw new Error('A CSV file is required.');
+  }
+
   const formData = new FormData();
-  formData.append('file', csvFile); // Matches backend conditionalCsvUpload field "file"
-  return axiosClient.post('/requirements/import-csv', formData);
+  formData.append('csvFile', csvFile);
+
+  return axiosClient.post('/requirements/csv-import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 }
 
-// ─── Client-Side Upload Validation ───────────────────────────────────────────
+// ─── Client-side Validation Helper ────────────────────────────────────────────
 /**
- * Validates a File object before uploading.
- * Throws a descriptive Error if the file is invalid.
+ * Validates a file before upload.
+ * Throws an Error with a descriptive message if invalid.
  *
  * @param {File} file
- * @throws {Error}
  */
 export function validateUploadFile(file) {
   if (!file) {
-    throw new Error('No file selected.');
+    throw new Error('No file provided.');
   }
 
   if (file.size > MAX_UPLOAD_BYTES) {
-    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
     throw new Error(
-      `File is too large (${sizeMB} MB). Maximum allowed size is 10 MB.`
+      `File size (${sizeMb} MB) exceeds the maximum allowed limit of 10 MB.`
     );
   }
 
@@ -327,3 +332,27 @@ export function getApiErrorMessage(err, fallback = 'An unexpected error occurred
   if (typeof err.message === 'string' && err.message) return err.message;
   return fallback;
 }
+
+export const requirementsApi = {
+  listRequirements,
+  getRequirement,
+  createRequirementFromText,
+  createRequirementFromForm,
+  updateRequirement,
+  confirmRequirement,
+  rejectRequirement,
+  getRequirementMatches,
+  uploadDocument,
+  createRequirementFromUpload,
+  triggerExtraction,
+  importRequirementsFromCsv,
+  validateUploadFile,
+  getApiErrorMessage,
+  REQUIREMENT_STATUS,
+  REQUIREMENT_SOURCE,
+  ALLOWED_UPLOAD_TYPES,
+  ALLOWED_UPLOAD_EXTENSIONS,
+  MAX_UPLOAD_BYTES,
+};
+
+export default requirementsApi;
