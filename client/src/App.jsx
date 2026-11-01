@@ -88,6 +88,15 @@ import GroupBuyCreatePage from '@/pages/groupBuys/GroupBuyCreatePage';
 import PaymentsPage from '@/pages/payments/PaymentsPage';
 import RefundsPage from '@/pages/payments/RefundsPage';
 
+// ── HIM-07: Requirement Intake Pages ─────────────────────────────────────────
+import RequirementsListPage from '@/pages/requirements/RequirementsListPage';
+import RequirementCreatePage from '@/pages/requirements/RequirementCreatePage';
+import RequirementDetailPage from '@/pages/requirements/RequirementDetailPage';
+
+// ── HIM-09: Supplier Catalogue Page ──────────────────────────────────────────
+import SupplierCataloguePage from '@/pages/suppliers/SupplierCataloguePage';
+import SupplierDetailPage from '@/pages/suppliers/SupplierDetailPage';
+
 // ── Role Landing Destinations ─────────────────────────────────────────────────
 export function getRoleHome(role) {
   switch (role) {
@@ -316,6 +325,7 @@ export function AppRoutes() {
         }
       />
 
+      {/* ── HIM-07: Requirement Intake ──────────────────────────────────────── */}
       <Route
         path="/requirements"
         element={
@@ -324,14 +334,33 @@ export function AppRoutes() {
             title="Procurement Requirements"
             subtitle="AI-assisted requirement intake and itemization engine"
           >
-            <FeaturePlaceholder
-              title="Requirements Management"
-              description="AI-assisted requirement intake and itemization engine. Submit purchase requirements via plain text or invoice upload, verify extracted SKUs and quantities, and convert directly into collective group-buy pools."
-              wave="Wave 3 (HIM-07 / HIM-08)"
-              owner="Himanshu"
-              roles={['SHOP_OWNER']}
-              icon={FileText}
-            />
+            <RequirementsListPage />
+          </ProtectedShellRoute>
+        }
+      />
+
+      <Route
+        path="/requirements/new"
+        element={
+          <ProtectedShellRoute
+            allowedRoles={['SHOP_OWNER']}
+            title="Create Requirement"
+            subtitle="Submit a new purchasing requirement via AI, upload or form"
+          >
+            <RequirementCreatePage />
+          </ProtectedShellRoute>
+        }
+      />
+
+      <Route
+        path="/requirements/:requirementId"
+        element={
+          <ProtectedShellRoute
+            allowedRoles={['SHOP_OWNER']}
+            title="Requirement Details"
+            subtitle="AI extraction review, attribute confirmation and supplier matching"
+          >
+            <RequirementDetailPage />
           </ProtectedShellRoute>
         }
       />
@@ -344,13 +373,39 @@ export function AppRoutes() {
             title="Supplier Catalogue"
             subtitle="Verified regional wholesalers, MOQ tiers and catalogue pricing"
           >
+            <SupplierCataloguePage />
+          </ProtectedShellRoute>
+        }
+      />
+
+      <Route
+        path="/suppliers/:supplierId"
+        element={
+          <ProtectedShellRoute
+            allowedRoles={['SHOP_OWNER']}
+            title="Supplier Details"
+            subtitle="Wholesale supplier business profile, verification status, and active catalogue offers"
+          >
+            <SupplierDetailPage />
+          </ProtectedShellRoute>
+        }
+      />
+
+      <Route
+        path="/group-buys/create"
+        element={
+          <ProtectedShellRoute
+            allowedRoles={['SHOP_OWNER']}
+            title="Create Group-Buy Pool"
+            subtitle="Initiate collective buying pool from supplier offer"
+          >
             <FeaturePlaceholder
-              title="Supplier Catalogue & Offers"
-              description="Direct verified wholesaler directory with wholesale MOQ thresholds, quantity price breaks, tier progression rules, and fulfillment SLAs across regional micro-distribution hubs."
-              wave="Wave 3 (HIM-09)"
-              owner="Himanshu"
+              title="Create Group-Buy Pool"
+              description="Initiate a collective buying pool using this supplier offer. Group-Buy pool creation is part of Wave 4 (SUJ-02)."
+              wave="Wave 4 (SUJ-02)"
+              owner="Suraj"
               roles={['SHOP_OWNER']}
-              icon={Store}
+              icon={Users}
             />
           </ProtectedShellRoute>
         }

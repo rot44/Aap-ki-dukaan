@@ -36,8 +36,92 @@ vi.mock('@/context/NotificationContext', () => ({
   NotificationProvider: ({ children }) => <div data-testid="notif-provider">{children}</div>,
 }));
 
+// Mock requirements API so RequirementsListPage doesn't hit the network
+
+vi.mock('@/api/suppliers.api', () => ({
+  searchOffers: vi.fn().mockResolvedValue({ data: { offers: [] } }),
+  compareOffers: vi.fn(),
+  listSuppliers: vi.fn().mockResolvedValue({ data: { suppliers: [] } }),
+  getSupplierById: vi.fn(),
+  getOffersBySupplier: vi.fn().mockResolvedValue({ offers: [] }),
+  requestQuote: vi.fn(),
+  searchProducts: vi.fn().mockResolvedValue({ data: { products: [] } }),
+  QUOTE_REQUEST_REASONS: [
+    { value: 'NO_COMPATIBLE_OFFER', label: 'No Compatible Offer Available' },
+    { value: 'STALE_QUOTE', label: 'Stale / Expired Quote (Request Refresh)' },
+    { value: 'CUSTOM_SPECS', label: 'Custom Specifications or Packaging' },
+    { value: 'VOLUME_DISCOUNT', label: 'Volume Discount for Larger Order' },
+    { value: 'UNDER_MOQ_POOL', label: 'Under-MOQ Fulfillment Request' },
+    { value: 'OTHER', label: 'Other Commercial Requirement' },
+  ],
+  CATEGORY_OPTIONS: [
+    { value: 'ALL', label: 'All Categories' },
+    { value: 'PACKAGING', label: 'Packaging Materials' },
+  ],
+  DELIVERY_AREAS: [
+    { value: 'ALL', label: 'All Delivery Areas' },
+    { value: 'DELHI_NCR', label: 'Delhi NCR' },
+  ],
+  SORT_OPTIONS: {
+    LOWEST_LANDED_COST: 'LOWEST_LANDED_COST',
+    LOWEST_MOQ: 'LOWEST_MOQ',
+    FRESHEST_QUOTE: 'FRESHEST_QUOTE',
+  },
+  SORT_LABELS: [
+    { value: 'LOWEST_LANDED_COST', label: 'Lowest Landed Cost' },
+  ],
+  MOQ_FILTER_OPTIONS: [
+    { value: 'ALL', label: 'Any Wholesale MOQ' },
+  ],
+  PROVENANCE_DISPLAY: {
+    SEEDED_DEMO: { label: 'DEMO SAMPLE DATA', variant: 'provenance' },
+    SUPPLIER_SUBMITTED: { label: 'SUPPLIER SUBMITTED', variant: 'pool' },
+    VERIFIED_LIVE: { label: 'VERIFIED LIVE', variant: 'success' },
+    EXTERNAL_API: { label: 'EXTERNAL API', variant: 'outline' },
+  },
+  getApiErrorMessage: vi.fn((err, fallback) => err?.message || fallback || 'Error'),
+  isOfferExpired: vi.fn(() => false),
+  resolveOfferProvenance: vi.fn(() => ({ label: 'VERIFIED LIVE', variant: 'success', isVerified: true })),
+  calculateOfferLandedCost: vi.fn(() => ({ unitPriceMinor: 1000, landedCostMinor: 1000, isShippingKnown: true })),
+}));
+
+vi.mock('@/api/requirements.api', () => ({
+  REQUIREMENT_STATUS: {
+    DRAFT: 'DRAFT',
+    PROCESSING: 'PROCESSING',
+    NEEDS_REVIEW: 'NEEDS_REVIEW',
+    CONFIRMED: 'CONFIRMED',
+    FAILED_EXTRACTION: 'FAILED_EXTRACTION',
+  },
+  REQUIREMENT_SOURCE: {
+    NATURAL_LANGUAGE: 'NATURAL_LANGUAGE',
+    DOCUMENT_UPLOAD: 'DOCUMENT_UPLOAD',
+    STRUCTURED_FORM: 'STRUCTURED_FORM',
+    CSV_IMPORT: 'CSV_IMPORT',
+  },
+  ALLOWED_UPLOAD_TYPES: ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'],
+  ALLOWED_UPLOAD_EXTENSIONS: ['.pdf', '.png', '.jpg', '.jpeg', '.webp'],
+  MAX_UPLOAD_BYTES: 10 * 1024 * 1024,
+  listRequirements: vi.fn().mockResolvedValue({ data: { requirements: [] } }),
+  getRequirement: vi.fn(),
+  createRequirementFromText: vi.fn(),
+  createRequirementFromForm: vi.fn(),
+  createRequirementFromUpload: vi.fn(),
+  updateRequirement: vi.fn(),
+  uploadDocument: vi.fn(),
+  triggerExtraction: vi.fn(),
+  importRequirementsFromCsv: vi.fn(),
+  validateUploadFile: vi.fn(),
+  getApiErrorMessage: vi.fn((err, fallback) => err?.message || fallback || 'Error'),
+  confirmRequirement: vi.fn(),
+  rejectRequirement: vi.fn(),
+  getRequirementMatches: vi.fn(),
+}));
+
 import { useAuth, useOptionalAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationContext';
+import * as requirementsApi from '@/api/requirements.api';
+import * as suppliersApi from '@/api/suppliers.api';
 import App, { AppRoutes, getRoleHome } from '@/App';
 
 // ── Test User Personas ────────────────────────────────────────────────────────
@@ -448,26 +532,98 @@ describe('SUJ-10: Application Routing & Provider Integration', () => {
       expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
 
-    it('renders /requirements inside AppShellLayout', () => {
+    it('renders /requirements inside AppShellLayout', async () => {
       render(
         <MemoryRouter initialEntries={['/requirements']}>
           <AppRoutes />
         </MemoryRouter>
       );
 
-      expect(screen.getByText('Requirements Management')).toBeInTheDocument();
-      expect(screen.getByText('Wave 3 (HIM-07 / HIM-08)')).toBeInTheDocument();
+      // RequirementsListPage is now the real implementation — wait for page heading
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: /requirements/i })).toBeInTheDocument()
+      );
+      expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
 
-    it('renders /suppliers inside AppShellLayout', () => {
+    it('renders /requirements/:requirementId inside AppShellLayout', async () => {
+      requirementsApi.getRequirement.mockResolvedValueOnce({
+        data: {
+          _id: 'req-test-route-1',
+          title: 'Route Requirement Detail',
+          status: 'DRAFT',
+          source: 'STRUCTURED_FORM',
+          confirmedFields: { productName: 'Test Coffee Beans' },
+        },
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/requirements/req-test-route-1']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      await waitFor(() =>
+        expect(screen.getByTestId('requirement-detail-page')).toBeInTheDocument()
+      );
+      expect(screen.getByRole('navigation')).toBeInTheDocument();
+    });
+
+    it('renders /suppliers inside AppShellLayout', async () => {
+      suppliersApi.searchOffers.mockResolvedValueOnce({
+        data: { offers: [] },
+      });
+
       render(
         <MemoryRouter initialEntries={['/suppliers']}>
           <AppRoutes />
         </MemoryRouter>
       );
 
-      expect(screen.getByText('Supplier Catalogue & Offers')).toBeInTheDocument();
-      expect(screen.getByText('Wave 3 (HIM-09)')).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.getByTestId('supplier-catalogue-page')).toBeInTheDocument()
+      );
+      expect(screen.getByRole('navigation')).toBeInTheDocument();
+    });
+
+    it('renders /suppliers/:supplierId inside AppShellLayout', async () => {
+      suppliersApi.getSupplierById.mockResolvedValueOnce({
+        data: {
+          data: {
+            _id: 'sup-route-test-1',
+            name: 'Apex Packaging Industries',
+            serviceAreas: ['DELHI_NCR'],
+            verificationStatus: 'VERIFIED',
+            dataSourceType: 'VERIFIED_LIVE',
+          },
+        },
+      });
+      suppliersApi.getOffersBySupplier.mockResolvedValueOnce({
+        offers: [],
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/suppliers/sup-route-test-1']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      await waitFor(() =>
+        expect(screen.getByTestId('supplier-detail-page')).toBeInTheDocument()
+      );
+      expect(screen.getByRole('navigation')).toBeInTheDocument();
+    });
+
+    it('renders /group-buys/create inside AppShellLayout', () => {
+      render(
+        <MemoryRouter initialEntries={['/group-buys/create?offerId=off-123']}>
+          <AppRoutes />
+        </MemoryRouter>
+      );
+
+      expect(screen.getAllByText('Create Group-Buy Pool').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('Wave 4 (SUJ-02)')).toBeInTheDocument();
+      expect(screen.getByRole('navigation')).toBeInTheDocument();
     });
 
     it('renders /group-buys inside AppShellLayout', () => {
