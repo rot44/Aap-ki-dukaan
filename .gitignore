@@ -10,6 +10,7 @@ Thumbs.db
 # Dependencies
 node_modules/
 backend/node_modules/
+client/node_modules/
 
 # Environment Variables
 .env
@@ -41,3 +42,7 @@ public/temp/*
 # Skills and agent artifacts
 skills/
 skills-lock.json
+.agents/
+.agent/
+_agents/
+_agent/
